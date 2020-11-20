@@ -60,13 +60,13 @@ class LeatherConfig(Config):
     IMAGES_PER_GPU = 1
 
     # Number of classes (including background)
-    NUM_CLASSES = 1 + 1  # Background + default
+    NUM_CLASSES = 1 + 5  # Background + number of defaults
 
     # Number of training steps per epoch
-    #STEPS_PER_EPOCH = 100
+    # STEPS_PER_EPOCH = 100
 
     # Skip detections with < 90% confidence
-    #DETECTION_MIN_CONFIDENCE = 0.9
+    # DETECTION_MIN_CONFIDENCE = 0.9
 
 
 ############################################################
@@ -81,56 +81,61 @@ class LeatherDataset(utils.Dataset):
         subset: Subset to load: train or val
         """
         # Add classes.
-        self.add_class("default", 1, "default")
+        self.add_class("leather", 1, "color")
+        self.add_class("leather", 2, "cut")
+        self.add_class("leather", 3, "fold")
+        self.add_class("leather", 4, "glue")
+        self.add_class("leather", 5, "poke")
 
         # Train or validation dataset?
         assert subset in ["train", "val"]
-        dataset_dir = os.path.join(dataset_dir, subset)
+        dataset_dir_sub = os.path.join(dataset_dir, subset)
 
-        folders = ["color", "cut", "fold", "glue", "good", "poke"]
+        folders = ["color", "cut", "fold", "glue", "poke"]
 
-        # TODO: pourquoi aucune des images ne se charge
         for label in folders:
-            label_dir = os.path.join(dataset_dir, label)
-            image_ids = next(os.walk(label_dir))[1]
+            label_dir = os.path.join(dataset_dir_sub, label)
+            image_ids = next(os.walk(label_dir))[2]
 
             for img in image_ids:
-                path = os.path.join(dataset_dir, label, img)
+                path = os.path.join(dataset_dir_sub, label, img)
                 image = skimage.io.imread(path)
                 height, width = image.shape[:2]
+                image_id = "{}_{}".format(label, img)
+                if label != "good":
+                    mask_dir = os.path.join(
+                        dataset_dir, "ground_truth", label,
+                        "{}_mask.png".format(img.split('.')[0]))
+                else:
+                    mask_dir = None
                 self.add_image(
                     "leather",
-                    image_id="{}_{}".format(label, img),
+                    image_id=image_id,
                     path=path,
                     width=width, height=height,
-                    label=label
+                    label=label,
+                    mask_dir=mask_dir
                 )
 
     def load_mask(self, image_id):
-        """TODO:Generate instance masks for an image.
-       Returns:
+        """Generate instance masks for an image.
+        Returns:
         masks: A bool array of shape [height, width, instance count] with
             one mask per instance.
         class_ids: a 1D array of class IDs of the instance masks.
         """
-        # If not a leather dataset image, delegate to parent class.
-        image_info = self.image_info[image_id]
-        if image_info["source"] != "leather":
-            return super(self.__class__, self).load_mask(image_id)
 
-        # Convert polygons to a bitmap mask of shape
-        # [height, width, instance_count]
         info = self.image_info[image_id]
-        mask = np.zeros([info["height"], info["width"], len(info["polygons"])],
-                        dtype=np.uint8)
-        for i, p in enumerate(info["polygons"]):
-            # Get indexes of pixels inside the polygon and set them to 1
-            rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
-            mask[rr, cc, i] = 1
+        class_id = self.class_names.index(info["label"])
+        mask_dir = info["mask_dir"]
+        mask = np.zeros([info['height'], info['width'], 1], dtype=np.uint8)
+        if info["label"] != "good":
+            mask_img = skimage.io.imread(mask_dir)
+            for i, row in enumerate(mask_img):
+                for j, item in enumerate(row):
+                    mask[i, j] = [item]
 
-        # Return mask, and array of class IDs of each instance. Since we have
-        # one class ID only, we return an array of 1s
-        return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+        return mask.astype(np.bool), np.array([class_id]).astype(np.int32)
 
     def image_reference(self, image_id):
         """Return the path of the image."""
@@ -141,7 +146,7 @@ class LeatherDataset(utils.Dataset):
             super(self.__class__, self).image_reference(image_id)
 
 
-"""
+
 def train(model):
     # Training dataset.
     dataset_train = LeatherDataset()
@@ -162,7 +167,7 @@ def train(model):
                 learning_rate=config.LEARNING_RATE,
                 epochs=30,
                 layers='heads')
-"""
+
 ############################################################
 #  Training
 ############################################################
@@ -249,4 +254,5 @@ if __name__ == '__main__':
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
+
 """
