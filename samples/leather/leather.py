@@ -172,7 +172,7 @@ def train(model):
 #  Training
 ############################################################
 
-"""
+
 if __name__ == '__main__':
     import argparse
 
@@ -181,7 +181,7 @@ if __name__ == '__main__':
         description='Train Mask R-CNN to detect leathers.')
     parser.add_argument("command",
                         metavar="<command>",
-                        help="'train'")
+                        help="'train' or 'evaluate'")
     parser.add_argument('--dataset', required=False,
                         metavar="/path/to/leather/dataset/",
                         help='Directory of the leather dataset')
@@ -198,6 +198,7 @@ if __name__ == '__main__':
     if args.command == "train":
         assert args.dataset, "Argument --dataset is required for training"
 
+    print("Command: ", args.command)
     print("Weights: ", args.weights)
     print("Dataset: ", args.dataset)
     print("Logs: ", args.logs)
@@ -228,12 +229,6 @@ if __name__ == '__main__':
         # Download weights file
         if not os.path.exists(weights_path):
             utils.download_trained_weights(weights_path)
-    elif args.weights.lower() == "last":
-        # Find last trained weights
-        weights_path = model.find_last()
-    elif args.weights.lower() == "imagenet":
-        # Start from ImageNet trained weights
-        weights_path = model.get_imagenet_weights()
     else:
         weights_path = args.weights
 
@@ -255,4 +250,3 @@ if __name__ == '__main__':
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
 
-"""
