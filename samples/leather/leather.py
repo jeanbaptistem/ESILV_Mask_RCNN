@@ -29,6 +29,7 @@ import json
 import datetime
 import numpy as np
 import skimage.draw
+import tensorflow as tf
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -176,6 +177,8 @@ def train(model):
 if __name__ == '__main__':
     import argparse
 
+    DEVICE = "/gpu:1"  # /cpu:0 or /gpu:0
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Train Mask R-CNN to detect leathers.')
@@ -216,12 +219,13 @@ if __name__ == '__main__':
     config.display()
 
     # Create model
-    if args.command == "train":
-        model = modellib.MaskRCNN(mode="training", config=config,
-                                  model_dir=args.logs)
-    else:
-        model = modellib.MaskRCNN(mode="inference", config=config,
-                                  model_dir=args.logs)
+    with tf.device(DEVICE):
+        if args.command == "train":
+            model = modellib.MaskRCNN(mode="training", config=config,
+                                      model_dir=args.logs)
+        else:
+            model = modellib.MaskRCNN(mode="inference", config=config,
+                                      model_dir=args.logs)
 
     # Select weights file to load
     if args.weights.lower() == "coco":
@@ -241,7 +245,9 @@ if __name__ == '__main__':
             "mrcnn_class_logits", "mrcnn_bbox_fc",
             "mrcnn_bbox", "mrcnn_mask"])
     else:
-        model.load_weights(weights_path, by_name=True)
+        model.load_weights(weights_path, by_name=True, exclude=[
+            "mrcnn_class_logits", "mrcnn_bbox_fc",
+            "mrcnn_bbox", "mrcnn_mask"])
 
     # Train or evaluate
     if args.command == "train":

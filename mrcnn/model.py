@@ -1957,10 +1957,10 @@ class MaskRCNN():
             # TODO: can this be optimized to avoid duplicating the anchors?
             anchors = np.broadcast_to(
                 anchors, (config.BATCH_SIZE,) + anchors.shape)
+            anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
             # A hack to get around Keras's bad support for constants
-            # anchors = KL.Lambda(lambda x: tf.Variable(anchors), name="anchors")(input_image)
-            anchor_layer = AnchorsLayer(name="anchors")
-            anchors = anchor_layer(anchors)
+            # anchor_layer = AnchorsLayer(name="anchors")
+            # anchors = anchor_layer(anchors)
         else:
             anchors = input_anchors
 
@@ -2753,7 +2753,7 @@ class MaskRCNN():
         for k, v in outputs_np.items():
             log(k, v)
         return outputs_np
-
+"""
 ############################################################
 #  Anchors Hack
 #  cf: https://github.com/matterport/Mask_RCNN/issues/1930
@@ -2769,7 +2769,7 @@ class AnchorsLayer(tf.keras.layers.Layer):
     def get_config(self):
         config = super(AnchorsLayer, self).get_config()
         return config
-
+"""
 
 ############################################################
 #  Data Formatting
