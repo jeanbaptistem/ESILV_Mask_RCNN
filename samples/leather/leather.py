@@ -15,10 +15,9 @@ Usage: import the module (see Jupyter notebooks for examples), or run from
     python3 leather.py train --dataset=/path/to/leather/dataset --weights=coco
 
     # Resume training a model that you had trained earlier
-    python3 leather.py train --dataset=/path/to/leather/dataset --weights=last
+    python3 leather.py train --dataset=/path/to/leather/dataset --weights=/path/to/last/trained/weights
 
-    # Train a new model starting from ImageNet weights
-    python3 leather.py train --dataset=/path/to/leather/dataset --weights=imagenet
+
 """
 
 from mrcnn import model as modellib, utils
@@ -64,10 +63,12 @@ class LeatherConfig(Config):
     NUM_CLASSES = 1 + 5  # Background + number of defaults
 
     # Number of training steps per epoch
-    # STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 100
 
-    # Skip detections with < 90% confidence
-    # DETECTION_MIN_CONFIDENCE = 0.9
+    VALIDATION_STEPS = 25
+
+    # Skip detections with < 80% confidence
+    DETECTION_MIN_CONFIDENCE = 0.8
 
 
 ############################################################
@@ -134,7 +135,13 @@ class LeatherDataset(utils.Dataset):
             mask_img = skimage.io.imread(mask_dir)
             for i, row in enumerate(mask_img):
                 for j, item in enumerate(row):
-                    mask[i, j] = [item]
+                    summ = 0
+                    for elem in item:
+                        summ += elem
+                    if(summ//len(item))>0.5:
+                        mask[i, j] = [1]
+                    else:
+                        mask[i, j] = [0]
 
         return mask.astype(np.bool), np.array([class_id]).astype(np.int32)
 
@@ -177,8 +184,6 @@ def train(model):
 if __name__ == '__main__':
     import argparse
 
-    DEVICE = "/gpu:1"  # /cpu:0 or /gpu:0
-
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description='Train Mask R-CNN to detect leathers.')
@@ -219,13 +224,12 @@ if __name__ == '__main__':
     config.display()
 
     # Create model
-    with tf.device(DEVICE):
-        if args.command == "train":
-            model = modellib.MaskRCNN(mode="training", config=config,
-                                      model_dir=args.logs)
-        else:
-            model = modellib.MaskRCNN(mode="inference", config=config,
-                                      model_dir=args.logs)
+    if args.command == "train":
+        model = modellib.MaskRCNN(mode="training", config=config,
+                                model_dir=args.logs)
+    else:
+        model = modellib.MaskRCNN(mode="inference", config=config,
+                                model_dir=args.logs)
 
     # Select weights file to load
     if args.weights.lower() == "coco":
@@ -252,6 +256,8 @@ if __name__ == '__main__':
     # Train or evaluate
     if args.command == "train":
         train(model)
+    elif args.command == "evaluate":
+        pass
     else:
         print("'{}' is not recognized. "
               "Use 'train'".format(args.command))
